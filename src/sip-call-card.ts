@@ -35,6 +35,7 @@ interface CallCardConfig {
     buttons: Button[];
     extensions: { [key: string]: Extension };
     idle_text: string;
+    default_call_extension: string;
     largeUI: boolean;
 }
 
@@ -239,6 +240,8 @@ class SIPCallCard extends LitElement {
                     this.audioVisualizer = undefined;
                 }
             }
+        } else if (sipCore.callState === CALLSTATE.IDLE && this.config?.default_call_extension) {
+            camera = this.config?.extensions[this.config.default_call_extension]?.camera_entity || "";
         }
 
         return html`
@@ -252,7 +255,7 @@ class SIPCallCard extends LitElement {
                     sipCore.remoteVideoStream === null ? "none" : "block"
                 }" playsinline id="remoteVideo"></video>
                 ${
-                    sipCore.callState === CALLSTATE.IDLE
+                    sipCore.callState === CALLSTATE.IDLE && !this.config?.default_call_extension
                         ? html`
                               <div class="placeholder">
                                   <span>${this.config?.idle_text ?? "No active call"}</span>
@@ -274,9 +277,23 @@ class SIPCallCard extends LitElement {
                     <div>
                         <ha-icon-button
                             style="color: var(--label-badge-green);"
-                            label="Answer call"
-                            ?disabled="${sipCore.callState === CALLSTATE.IDLE}"
-                            @click="${() => sipCore.answerCall()}">
+                            label="${
+                                sipCore.callState === CALLSTATE.IDLE && this.config?.default_call_extension
+                                    ? "Call " + this.config.default_call_extension
+                                    : "Answer call"
+                            }"
+                            ?disabled="${
+                                sipCore.callState === CALLSTATE.IDLE && !this.config?.default_call_extension
+                            }"
+                            @click="${() => {
+                                if (sipCore.callState === CALLSTATE.IDLE) {
+                                    if (this.config?.default_call_extension) {
+                                        sipCore.startCall(this.config.default_call_extension);
+                                    }
+                                } else {
+                                    sipCore.answerCall();
+                                }
+                            }}">
                             <ha-icon .icon=${phoneIcon}></ha-icon>
                         </ha-icon-button>
                         <span>${statusText}</span>
