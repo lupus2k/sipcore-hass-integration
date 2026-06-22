@@ -32,10 +32,10 @@ interface Button {
 }
 
 interface CallCardConfig {
-    buttons: Button[];
+    buttons?: Button[];
     extensions: { [key: string]: Extension };
     idle_text: string;
-    default_call_extension: string;
+    default_extension: string;
     largeUI: boolean;
 }
 
@@ -200,7 +200,7 @@ class SIPCallCard extends LitElement {
 
         switch (sipCore.callState) {
             case CALLSTATE.IDLE:
-                statusText = "No active call";
+                statusText = !this.config?.default_extension ? "No active call" : "";
                 phoneIcon = "mdi:phone";
                 break;
             case CALLSTATE.INCOMING:
@@ -240,8 +240,6 @@ class SIPCallCard extends LitElement {
                     this.audioVisualizer = undefined;
                 }
             }
-        } else if (sipCore.callState === CALLSTATE.IDLE && this.config?.default_call_extension) {
-            camera = this.config?.extensions[this.config.default_call_extension]?.camera_entity || "";
         }
 
         return html`
@@ -255,10 +253,10 @@ class SIPCallCard extends LitElement {
                     sipCore.remoteVideoStream === null ? "none" : "block"
                 }" playsinline id="remoteVideo"></video>
                 ${
-                    sipCore.callState === CALLSTATE.IDLE && !this.config?.default_call_extension
+                    sipCore.callState === CALLSTATE.IDLE
                         ? html`
                               <div class="placeholder">
-                                  <span>${this.config?.idle_text ?? "No active call"}</span>
+                                  <span>${statusText}</span>
                               </div>
                           `
                         : camera
@@ -278,17 +276,17 @@ class SIPCallCard extends LitElement {
                         <ha-icon-button
                             style="color: var(--label-badge-green);"
                             label="${
-                                sipCore.callState === CALLSTATE.IDLE && this.config?.default_call_extension
-                                    ? "Call " + this.config.default_call_extension
+                                sipCore.callState === CALLSTATE.IDLE && this.config?.default_extension
+                                    ? "Call " + this.config.default_extension
                                     : "Answer call"
                             }"
                             ?disabled="${
-                                sipCore.callState === CALLSTATE.IDLE && !this.config?.default_call_extension
+                                sipCore.callState === CALLSTATE.IDLE && !this.config?.default_extension
                             }"
                             @click="${() => {
                                 if (sipCore.callState === CALLSTATE.IDLE) {
-                                    if (this.config?.default_call_extension) {
-                                        sipCore.startCall(this.config.default_call_extension);
+                                    if (this.config?.default_extension) {
+                                        sipCore.startCall(this.config.default_extension);
                                     }
                                 } else {
                                     sipCore.answerCall();
@@ -299,7 +297,7 @@ class SIPCallCard extends LitElement {
                         <span>${statusText}</span>
                     </div>
                     <div>
-                        ${this.config?.buttons.map((button) => {
+                        ${this.config?.buttons?.map((button) => {
                             if (button.type === ButtonType.SERVICE_CALL) {
                                 return html`
                                     <ha-icon-button
